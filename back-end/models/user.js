@@ -7,7 +7,10 @@ const userSchema = new mongoose.Schema({
   hashedPassword: { type: String, required: true },
 
   // Profile
-  displayName: { type: String }, // tên hiển thị
+  displayName: { type: String, required: true }, // tên hiển thị
+  gender: { type: String, enum: ["Male", "Female", "Other"] },
+  dateOfBirth: { type: Date },
+  phone: { type: String, required: true, unique: true },
   avatarUrl: { type: String },
   bio: { type: String, maxlength: 300 }, // giới thiệu ngắn
   location: { type: String },
@@ -27,8 +30,13 @@ const userSchema = new mongoose.Schema({
   activeConversations: [{ type: mongoose.Schema.Types.ObjectId, ref: "Conversation" }],
 
   // System
-  isVerified: { type: Boolean, default: false }, // verified user
-  role: { type: String, enum: ["user", "artist", "admin"], default: "user" },
+  isLocked: { type: Boolean, default: false }, // locked user
+  role: { type: String, enum: ["User", "Admin"], default: "User" },
+  activationToken: { type: String },
+  activationExpires: { type: Date },
+  activateStatus: { type: Boolean, default: false },
+  passwordResetToken: { type: String },
+  passwordResetExpires: { type: Date },
 
 }, { timestamps: true });
 
