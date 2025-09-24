@@ -3,7 +3,6 @@ const mongoose = require("mongoose");
 const trackSchema = new mongoose.Schema({
   // Thông tin cơ bản
   title: { type: String, required: true, index: true }, // tên bài hát
-  description: { type: String, maxlength: 500 },
   audioUrl: { type: String, required: true }, // link file nhạc (cloud/storage)
   coverArtUrl: { type: String }, // ảnh cover
 
@@ -22,6 +21,7 @@ const trackSchema = new mongoose.Schema({
   comments: [{ type: mongoose.Schema.Types.ObjectId, ref: "Comment" }], // tham chiếu model Comment
   playCount: { type: Number, default: 0, index: true }, // số lượt nghe
   likedCount: { type: Number, default: 0 }, // tổng số like (dùng để sort nhanh hơn)
+  privacy: { type: String, enum: ["Public", "Private", "Friends"], default: "Public" },
   
   // System
   isPublic: { type: Boolean, default: true }, // private/public

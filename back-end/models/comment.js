@@ -1,13 +1,11 @@
 const mongoose = require("mongoose");
 
 const commentSchema = new mongoose.Schema({
-  // Nội dung
+  
   text: { type: String, required: true, maxlength: 500 },
-
-  // Liên kết
-  author: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true }, // ai comment
-  track: { type: mongoose.Schema.Types.ObjectId, ref: "Track" },    // comment vào track
-  playlist: { type: mongoose.Schema.Types.ObjectId, ref: "Playlist" }, // hoặc vào playlist
+  
+  author: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true }, 
+  track: { type: mongoose.Schema.Types.ObjectId, ref: "Track" },   
 
   // Social
   likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
