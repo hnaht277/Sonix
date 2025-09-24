@@ -7,6 +7,7 @@ const { connectRedis } = require("./config/redis.config.js");
 dotenv.config();
 
 const authRoutes = require("./routes/auth.route.js");
+const userRoutes = require("./routes/user.route.js");
 
 
 // Connect to MongoDB
@@ -19,6 +20,7 @@ const app = express();
 app.use(express.json());
 
 app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
 
 // Route test
 app.get("/", (req, res) => {

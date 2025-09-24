@@ -16,6 +16,7 @@ const playlistSchema = new mongoose.Schema({
   // Social
   likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   likedCount: { type: Number, default: 0 },
+  privacy: { type: String, enum: ["Public", "Private", "Friends"], default: "Public" },
 
   // System
   isPublic: { type: Boolean, default: true }, // private / public
