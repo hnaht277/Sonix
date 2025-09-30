@@ -12,6 +12,7 @@ const userSchema = new mongoose.Schema({
   dateOfBirth: { type: Date },
   phone: { type: String, required: true, unique: true },
   avatarUrl: { type: String },
+  avatarPublicId: { type: String }, // ID file ảnh trên cloud (để xóa)
   bio: { type: String, maxlength: 300 }, // giới thiệu ngắn
   location: { type: String },
 
@@ -20,9 +21,6 @@ const userSchema = new mongoose.Schema({
   following: [{ type: mongoose.Schema.Types.ObjectId, ref: "User", index: true }],
 
   // Music activity
-  uploadedTracks: [{ type: mongoose.Schema.Types.ObjectId, ref: "Track" }], // bài nhạc tự upload
-  playlists: [{ type: mongoose.Schema.Types.ObjectId, ref: "Playlist" }],
-  recentlyPlayed: [{ type: mongoose.Schema.Types.ObjectId, ref: "Track" }],
   currentListening: { type: mongoose.Schema.Types.ObjectId, ref: "Track" },
 
   // Messaging

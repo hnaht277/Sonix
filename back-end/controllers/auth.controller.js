@@ -172,9 +172,9 @@ const login = async (req, res) => {
         }
 
         // Check if user is a customer (only customers can login through /login)
-        if (user.role !== 'User') {
-            return res.status(401).json({ message: 'Email or password is incorrect.' });
-        }
+        // if (user.role !== 'User') {
+        //     return res.status(401).json({ message: 'Email or password is incorrect.' });
+        // }
 
         if (user.isLocked) {
             return res.status(403).json({ message: 'Your account is locked. Please contact support.' });

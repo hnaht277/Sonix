@@ -8,6 +8,8 @@ dotenv.config();
 
 const authRoutes = require("./routes/auth.route.js");
 const userRoutes = require("./routes/user.route.js");
+const trackRoutes = require("./routes/track.route.js");
+require("./jobs/playCountSync.js");
 
 
 // Connect to MongoDB
@@ -21,6 +23,7 @@ app.use(express.json());
 
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/tracks", trackRoutes);
 
 // Route test
 app.get("/", (req, res) => {
