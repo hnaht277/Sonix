@@ -5,12 +5,13 @@ const trackSchema = new mongoose.Schema({
   title: { type: String, required: true, index: true }, // tên bài hát
   audioUrl: { type: String, required: true }, // link file nhạc (cloud/storage)
   coverArtUrl: { type: String }, // ảnh cover
+  coverArtPublicId: { type: String }, // ID file ảnh trên cloud (để xóa)
+  audioPublicId: { type: String, required: true }, // ID file nhạc trên cloud (để xóa)
 
   // Thông tin âm nhạc
   genre: { type: String, index: true }, // Pop, Rock, Rap...
   tags: [{ type: String, index: true }], // cho search
-  duration: { type: Number }, // thời lượng tính bằng giây
-  releaseDate: { type: Date },
+  duration: { type: Number, required: true }, // thời lượng tính bằng giây
 
   // Liên kết
   artist: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true }, // ai upload
@@ -19,7 +20,8 @@ const trackSchema = new mongoose.Schema({
   // Social
   likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }], // danh sách user like
   comments: [{ type: mongoose.Schema.Types.ObjectId, ref: "Comment" }], // tham chiếu model Comment
-  playCount: { type: Number, default: 0, index: true }, // số lượt nghe
+  commentCount: { type: Number, default: 0 }, // số bình luận
+  playCount: { type: Number, default: 0, index: true }, // số lượt nghe (dùng để sort nhanh hơn)
   likedCount: { type: Number, default: 0 }, // tổng số like (dùng để sort nhanh hơn)
   privacy: { type: String, enum: ["Public", "Private", "Friends"], default: "Public" },
   
