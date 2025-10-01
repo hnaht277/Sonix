@@ -17,6 +17,7 @@ const {
     removeTrackFromPlaylist,
     createPlaylist,
     removePlaylistCoverArt,
+    toggleLikePlaylist,
 } = require('../controllers/playlist.controller.js');
 
 router.get('/trending', getTrendingPlaylists);
@@ -29,6 +30,7 @@ router.get('/user/:userId/playlists', getPlaylistByUser);
 
 router.post('/', authMiddleware, createPlaylist); 
 
+router.patch('/:id/toggle-like', authMiddleware, toggleLikePlaylist);
 router.post('/:id/like', authMiddleware, likePlaylist); 
 router.delete('/:id/unlike', authMiddleware, unLikePlaylist); 
 

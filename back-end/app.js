@@ -10,6 +10,7 @@ const authRoutes = require("./routes/auth.route.js");
 const userRoutes = require("./routes/user.route.js");
 const trackRoutes = require("./routes/track.route.js");
 const playlistRoutes = require("./routes/playlist.route.js");
+const commentRoutes = require("./routes/comment.route.js");
 require("./jobs/playCountSync.js");
 
 
@@ -26,7 +27,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/tracks", trackRoutes);
 app.use("/api/playlists", playlistRoutes);
-
+app.use("/api/comments", commentRoutes);
 // Route test
 app.get("/", (req, res) => {
   res.send("Sonix backend is running!");

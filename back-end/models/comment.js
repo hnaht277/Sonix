@@ -6,6 +6,7 @@ const commentSchema = new mongoose.Schema({
   
   author: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true }, 
   track: { type: mongoose.Schema.Types.ObjectId, ref: "Track" },   
+  isOwner: { type: Boolean, default: false }, // có phải comment của chủ track không
 
   // Social
   likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],

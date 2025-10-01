@@ -17,6 +17,7 @@ const {
     updateCoverArt,
     getAllTracks,
     removeTrackCoverArt,
+    toggleLikeTrack,
 } = require("../controllers/track.controller.js");
 
 // Lấy danh sách trending (không cần login)
@@ -42,6 +43,7 @@ router.get("/user/:userId/tracks", authMiddleware, getTrackByUser);
 router.post("/", authMiddleware, uploadTrack);
 
 // Like / Unlike track
+router.patch("/:id/toggle-like", authMiddleware, toggleLikeTrack);
 router.post("/:id/like", authMiddleware, likeTrack);
 router.delete("/:id/unlike", authMiddleware, unlikeTrack);
 

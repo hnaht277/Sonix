@@ -7,6 +7,7 @@ const streamifier = require("streamifier");
 const multer = require("multer");
 const mm = require("music-metadata");
 const mongoose = require("mongoose");
+const Notification = require("../models/notification.js");
 
 
 const { redisClient } = require("../config/redis.config.js");
@@ -56,6 +57,68 @@ const getAllTracks = async (req, res) => {
   } catch (error) {
     console.error("Error fetching all tracks:", error);
     res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+const toggleLikeTrack = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    const userId = req.user.id;
+    const trackId = req.params.id;
+
+    const track = await Track.findById(trackId).session(session);
+    const user = await User.findById(userId).session(session);
+
+    if (!user) {
+      await session.abortTransaction();
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    if (!track) {
+      await session.abortTransaction();
+      return res.status(404).json({ error: "Track not found" });
+    }
+
+    let message = "";
+    let notification = null;
+
+    // Nếu user đã like -> bỏ like
+    if (track.likes.includes(userId)) {
+      track.likes = track.likes.filter((id) => id.toString() !== userId.toString());
+      track.likedCount = track.likes.length;
+      await track.save({ session });
+
+      message = "Track unliked successfully";
+    } else {
+      // Chưa like -> thêm like
+      track.likes.push(userId);
+      track.likedCount = track.likes.length;
+      await track.save({ session });
+
+      // Chỉ tạo thông báo nếu người like không phải chủ sở hữu
+      if (track.artist.toString() !== userId.toString()) {
+        notification = new Notification({
+          recipient: track.artist,
+          sender: userId,
+          type: "LIKE_TRACK",
+          track: trackId,
+          content: `${user.displayName} liked your track "${track.title}"`
+        });
+        await notification.save({ session });
+      }
+
+      message = "Track liked successfully";
+    }
+
+    await session.commitTransaction();
+    res.json({ message, track, notification: notification || null });
+  } catch (error) {
+    console.error("Error toggling like on track:", error);
+    await session.abortTransaction();
+    res.status(500).json({ error: "Internal server error" });
+  } finally {
+    session.endSession();
   }
 };
 
@@ -626,4 +689,5 @@ module.exports = {
     updateCoverArt,
     getAllTracks,
     removeTrackCoverArt,
+    toggleLikeTrack,
 };
