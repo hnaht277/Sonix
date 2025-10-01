@@ -26,7 +26,7 @@ const trackSchema = new mongoose.Schema({
   privacy: { type: String, enum: ["Public", "Private", "Friends"], default: "Public" },
   
   // System
-  isPublic: { type: Boolean, default: true }, // private/public
+  // isPublic: { type: Boolean, default: true }, // private/public
 }, { timestamps: true });
 
 // Indexes để search và sort nhanh
