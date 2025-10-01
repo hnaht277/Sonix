@@ -27,6 +27,7 @@ const getVisibleTracksForUser = async (req, res) => {
       $or: [
         { privacy: "Public" },
         { artist: { $in: user.following }, privacy: "Friends" },
+        { artist: userId, privacy: "Friends" },
         { artist: userId, privacy: "Private" }
       ]
     })
@@ -569,7 +570,47 @@ const getTrackByUser = async (req, res) => {
       res.status(500).json({ error: "Internal server error" });
   }
 };
-    
+
+const removeTrackCoverArt = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const trackId = req.params.id;
+
+    const track = await Track.findById(trackId);
+    if (!track) {
+      return res.status(404).json({ error: "Track not found" });
+    }
+
+    // Check if the user is the owner of the track
+    if (track.artist.toString() !== userId) {
+      return res.status(403).json({ error: "You are not authorized to update this track" });
+    }
+
+    // Delete cover from Cloudinary if exists
+    if (track.coverArtPublicId) {
+      try {
+        await cloudinary.uploader.destroy(track.coverArtPublicId, { resource_type: "image", invalidate: true });
+      } catch (error) {
+        console.error("Error deleting cover art from Cloudinary:", error);
+      }
+    }
+
+    // Remove cover info from DB
+    track.coverArtUrl = null;
+    track.coverArtPublicId = null;
+    await track.save();
+
+    // Invalidate cache
+    await redisClient.del("trendingTracks");
+    await redisClient.del(`userTracks:${userId}`);
+
+    res.json({ message: "Track cover art removed successfully", track });
+  } catch (error) {
+    console.error("Error removing track cover art:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
 module.exports = {
     getVisibleTracksForUser,
     likeTrack,
@@ -584,4 +625,5 @@ module.exports = {
     getTrackByUser,
     updateCoverArt,
     getAllTracks,
+    removeTrackCoverArt,
 };

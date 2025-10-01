@@ -16,6 +16,7 @@ const {
     getTrackByUser,
     updateCoverArt,
     getAllTracks,
+    removeTrackCoverArt,
 } = require("../controllers/track.controller.js");
 
 // Lấy danh sách trending (không cần login)
@@ -52,6 +53,9 @@ router.put("/:id/cover", authMiddleware, updateCoverArt);
 
 // Update track (chỉ owner)
 router.put("/:id", authMiddleware, updateTrack);
+
+// Remove cover art (chỉ owner)
+router.delete("/:id/cover", authMiddleware, removeTrackCoverArt);
 
 // Delete track (chỉ owner hoặc admin)
 router.delete("/:id", authMiddleware, deleteTrack);
