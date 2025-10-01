@@ -19,7 +19,6 @@ const trackSchema = new mongoose.Schema({
 
   // Social
   likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }], // danh sách user like
-  comments: [{ type: mongoose.Schema.Types.ObjectId, ref: "Comment" }], // tham chiếu model Comment
   commentCount: { type: Number, default: 0 }, // số bình luận
   playCount: { type: Number, default: 0, index: true }, // số lượt nghe (dùng để sort nhanh hơn)
   likedCount: { type: Number, default: 0 }, // tổng số like (dùng để sort nhanh hơn)

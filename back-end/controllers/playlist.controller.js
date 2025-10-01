@@ -3,8 +3,10 @@ const Playlist = require("../models/playlist.js");
 const multer = require("multer");
 const cloudinary = require("../config/cloudinary.config.js");
 const streamifier = require("streamifier");
+const mongoose = require("mongoose");
 
 const {redisClient} = require("../config/redis.config.js");
+const Notification = require("../models/notification.js");
 
 const getVisiblePlaylistsForUser = async (req, res) => {
   try {
@@ -70,6 +72,72 @@ const getVisiblePlaylistsForUser = async (req, res) => {
     console.error("Error fetching playlists:", error);
     res.status(500).json({ error: "Internal server error" });
   }
+};
+
+const toggleLikePlaylist = async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+        const userId = req.user.id;
+        const playlistId = req.params.id;
+
+        const playlist = await Playlist.findById(playlistId).session(session);
+        if (!playlist) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(404).json({ error: "Playlist not found" });
+        }
+
+        const user = await User.findById(userId).session(session);
+        if (!user) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        let notification = null;
+
+        let message = "";
+        if (playlist.likes.includes(userId)) {
+            // Nếu đã like -> unlike
+            playlist.likes.pull(userId);
+            playlist.likedCount = playlist.likes.length;
+            await playlist.save({ session });
+
+            message = "Playlist unliked successfully";
+        } else {
+            // Nếu chưa like -> like
+            playlist.likes.push(userId);
+            playlist.likedCount = playlist.likes.length;
+            await playlist.save({ session });
+
+            // Tạo notification cho chủ sở hữu playlist
+            if (playlist.owner.toString() !== userId) {
+                notification = new Notification({
+                    recipient: playlist.owner,
+                    sender: userId,
+                    type: "LIKE_PLAYLIST",
+                    playlist: playlist._id,
+                    content: `${user.displayName} liked your playlist "${playlist.title}"`
+                });
+                await notification.save({ session });
+            }
+
+            message = "Playlist liked successfully";
+        }
+
+        // Commit transaction
+        await session.commitTransaction();
+        session.endSession();
+
+        res.status(200).json({ message, playlist, notification: notification || null });
+    } catch (error) {
+        await session.abortTransaction();
+        session.endSession();
+        console.error("Error toggling like playlist:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
 };
 
 const likePlaylist = async (req, res) => {
@@ -524,4 +592,5 @@ module.exports = {
     addTrackToPlaylist,
     createPlaylist,
     removePlaylistCoverArt,
+    toggleLikePlaylist,
 };

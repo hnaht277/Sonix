@@ -8,6 +8,7 @@ const notificationSchema = new mongoose.Schema({
     enum: ["NEW_MESSAGE", "NEW_FOLLOW", "LIKE_TRACK", "LIKE_PLAYLIST", "COMMENT_TRACK", "SYSTEM"],
     required: true
   },
+  content: { type: String }, // nội dung tuỳ biến cho từng loại thông báo
   conversation: { type: mongoose.Schema.Types.ObjectId, ref: "Conversation" }, // cho NEW_MESSAGE
   message: { type: mongoose.Schema.Types.ObjectId, ref: "Message" }, // cho NEW_MESSAGE
   track: { type: mongoose.Schema.Types.ObjectId, ref: "Track" }, // cho LIKE/COMMENT
