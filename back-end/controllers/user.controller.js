@@ -34,7 +34,7 @@ const updateAvatar = async (req, res) => {
   try {
     const userId = req.user._id;
 
-    // --- Multer setup ngay trong controller ---
+
     const upload = multer().single("avatar");
 
     upload(req, res, async (err) => {

@@ -3,8 +3,6 @@ const mongoose = require("mongoose");
 
 const conversationSchema = new mongoose.Schema({
   participants: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
-  isGroup: { type: Boolean, default: false },
-  groupName: { type: String },
 
   // để hiển thị preview trong inbox
   lastMessage: { type: mongoose.Schema.Types.ObjectId, ref: "Message" },
