@@ -6,6 +6,8 @@ const cloudinary = require('../config/cloudinary.config');
 const multer = require('multer');
 const streamifier = require('streamifier');
 const History = require('../models/history.js');
+const Notification = require('../models/notification.js');
+const { getIO } = require('../config/socket.config.js');
 
 const { redisClient } = require('../config/redis.config');
 
@@ -198,6 +200,19 @@ const followUser = async (req, res) => {
         targetUser.followers.push(userId);
         await user.save();
         await targetUser.save();
+
+        // send notification to targetUser
+        const notification = new Notification({
+            recipient: targetUserId,
+            sender: userId,
+            type: "NEW_FOLLOW",
+            content: `${user.username} started following you.`,
+        });
+        await notification.save();
+
+        const io = getIO();
+        io.to(targetUserId.toString()).emit("newNotification", notification);
+
         await redisClient.setEx(`user:${userId}:following`, 3600, JSON.stringify(user.following)); // update following cache
         await redisClient.setEx(`user:${targetUserId}:followers`, 3600, JSON.stringify(targetUser.followers)); // update followers cache
 
@@ -246,161 +261,6 @@ const unfollowUser = async (req, res) => {
     }
 };
 
-// const getUpploadedTracks = async (req, res) => {
-//     try {
-//         const cachedTracks = await redisClient.get(`user:${req.user._id}:uploadedTracks`);
-//         if (cachedTracks) {
-//             return res.status(200).json(JSON.parse(cachedTracks));
-//         }
-
-//         const userId = req.user._id;
-//         const user = await User.findById(userId).populate('uploadedTracks');
-//         if (!user) {
-//             return res.status(404).json({ message: 'User not found' });
-//         }
-//         if (!user.uploadedTracks || user.uploadedTracks.length === 0) {
-//             return res.status(200).json({ message: 'No uploaded tracks found', uploadedTracks: [] });
-//         }
-
-//         await redisClient.setEx(`user:${userId}:uploadedTracks`, 3600, JSON.stringify(user.uploadedTracks)); // Cache for 1 hour
-
-//         res.status(200).json({ message: 'Uploaded tracks retrieved successfully', uploadedTracks: user.uploadedTracks });
-//     } catch (error) {
-//         console.error('Error retrieving uploaded tracks:', error);
-//         res.status(500).json({ message: 'Internal server error' });
-//     }
-// };
-
-// const getPlaylists = async (req, res) => {
-//     try {
-//         const cachedPlaylists = await redisClient.get(`user:${req.user._id}:playlists`);
-//         if (cachedPlaylists) {
-//             return res.status(200).json(JSON.parse(cachedPlaylists));
-//         }
-
-//         const userId = req.user._id;
-//         const user = await User.findById(userId)
-//         .populate({
-//             path: 'playlists',
-//             populate: {
-//                 path: 'tracks.track',   // đi sâu vào field `track` trong mảng `tracks`
-//                 model: 'Track'          // tên model của track
-//             }
-//         });
-
-//         if (!user) {
-//             return res.status(404).json({ message: 'User not found' });
-//         }
-//         if (!user.playlists || user.playlists.length === 0) {
-//             return res.status(200).json({ message: 'No playlists found', playlists: [] });
-//         }
-
-//         await redisClient.setEx(`user:${userId}:playlists`, 3600, JSON.stringify(user.playlists)); // Cache for 1 hour
-
-//         res.status(200).json({ message: 'Playlists retrieved successfully', playlists: user.playlists });
-//     } catch (error) {
-//         console.error('Error retrieving playlists:', error);
-//         res.status(500).json({ message: 'Internal server error' });
-//     }
-// };
-
-// const updatePlaylist = async (req, res) => {
-//     try {
-//         const userId = req.user._id;
-//         const playlistId = req.params.id;
-//         const updateData = req.body;
-
-//         const allowedUpdates = ['title', 'description', 'coverArtUrl', 'privacy'];
-//         for (const fields in updateData) {
-//             if (!allowedUpdates.includes(fields)) {
-//                 return res.status(400).json({ message: `Invalid field: ${fields}` });
-//             }
-//         }
-
-//         if (updateData.privacy && !['Public', 'Private', 'Friends'].includes(updateData.privacy)) {
-//             return res.status(400).json({ message: 'Invalid privacy setting' });
-//         }
-
-
-//         const playlist = await Playlist.findOneAndUpdate(
-//             { _id: playlistId, owner: userId },
-//             updateData,
-//             { new: true, runValidators: true }
-//         );
-
-//         if (!playlist) {
-//             return res.status(404).json({ message: 'Playlist not found or you are not the owner' });
-//         }
-
-//         await redisClient.del(`user:${userId}:playlists`); // Invalidate playlists cache
-
-//         res.status(200).json({ message: 'Playlist updated successfully', playlist });
-//     } catch (error) {
-//         console.error('Error updating playlist:', error);
-//         res.status(500).json({ message: 'Internal server error' });
-//     }
-// };
-
-// const addToPlaylist = async (req, res) => {
-//     try {
-//         const userId = req.user._id;
-//         const playlistId = req.params.id;
-//         const { trackId } = req.body;
-
-//         const playlist = await Playlist.findOne({ _id: playlistId, owner: userId });
-//         if (!playlist) {
-//             return res.status(404).json({ message: 'Playlist not found or you are not the owner' });
-//         }
-
-//         const track = await Track.findById(trackId);
-//         if (!track) {
-//             return res.status(404).json({ message: 'Track not found' });
-//         }
-
-//         if (playlist.tracks.some(t => t.track.toString() === trackId)) {
-//             return res.status(400).json({ message: 'Track already in playlist' });
-//         }
-
-//         playlist.tracks.push({ track: trackId });
-//         await playlist.save();
-
-//         await redisClient.del(`user:${userId}:playlists`); // Invalidate playlists cache
-
-//         res.status(200).json({ message: 'Track added to playlist successfully', playlist });
-//     } catch (error) {
-//         console.error('Error adding track to playlist:', error);
-//         res.status(500).json({ message: 'Internal server error' });
-//     }
-// };
-
-// const removeFromPlaylist = async (req, res) => {
-//     try {
-//         const userId = req.user._id;
-//         const playlistId = req.params.id;
-//         const { trackId } = req.body;
-
-//         const playlist = await Playlist.findOne({ _id: playlistId, owner: userId });
-//         if (!playlist) {
-//             return res.status(404).json({ message: 'Playlist not found or you are not the owner' });
-//         }
-
-//         const trackIndex = playlist.tracks.findIndex(t => t.track.toString() === trackId);
-//         if (trackIndex === -1) {
-//             return res.status(404).json({ message: 'Track not found in playlist' });
-//         }
-
-//         playlist.tracks.splice(trackIndex, 1);
-//         await playlist.save();
-
-//         await redisClient.del(`user:${userId}:playlists`); // Invalidate playlists cache
-
-//         res.status(200).json({ message: 'Track removed from playlist successfully', playlist });
-//     } catch (error) {
-//         console.error('Error removing track from playlist:', error);
-//         res.status(500).json({ message: 'Internal server error' });
-//     }
-// };
-
 const getLikedTracks = async (req, res) => {
     try {
         const likedTracks = await Track.find({ likes: req.user._id });
@@ -432,57 +292,112 @@ const getLikedPlaylists = async (req, res) => {
 };
 
 const setCurrentListening = async (req, res) => {
-  try {
-    const userId = req.user._id;
-    const { trackId } = req.params;
+    try {
+        const io = getIO(); // lấy instance socket
+        const userId = req.user._id;
+        const { trackId } = req.params;
 
-    // Validate trackId
-    if (!mongoose.Types.ObjectId.isValid(trackId)) {
-      return res.status(400).json({ message: "Invalid track ID" });
+        if (!mongoose.Types.ObjectId.isValid(trackId)) {
+            return res.status(400).json({ message: "Invalid track ID" });
+        }
+
+        const track = await Track.findById(trackId);
+        if (!track) {
+            return res.status(404).json({ message: "Track not found" });
+        }
+
+        const user = await User.findById(userId).select("currentListening followers username displayName avatarUrl");
+
+        // Nếu user đang nghe 1 bài khác → lưu bài cũ vào history
+        if (user.currentListening && user.currentListening.toString() !== trackId) {
+            await History.create({
+                user: userId,
+                track: user.currentListening,
+                playedAt: new Date(),
+            });
+        }
+
+        // Cập nhật bài mới
+        user.currentListening = trackId;
+        await user.save();
+
+        // Emit đến tất cả bạn bè (followers)
+        user.followers.forEach(friendId => {
+            io.to(friendId.toString()).emit("friendListeningUpdate", {
+                type: "start",
+                user: {
+                    _id: user._id,
+                    username: user.username,
+                    displayName: user.displayName,
+                    avatarUrl: user.avatarUrl,
+                },
+                track: {
+                    _id: track._id,
+                    title: track.title,
+                    artist: track.artist,
+                    coverUrl: track.coverUrl,
+                    audioUrl: track.audioUrl,
+                },
+                playedAt: new Date(),
+            });
+        });
+
+        res.status(200).json({
+            message: "Current listening track updated successfully",
+            currentListening: trackId,
+        });
+    } catch (error) {  
+        console.error("Error setting current listening track:", error);
+        res.status(500).json({ message: "Internal server error" });
     }
-
-    // Kiểm tra track tồn tại
-    const track = await Track.findById(trackId);
-    if (!track) {
-      return res.status(404).json({ message: "Track not found" });
-    }
-
-    // Update currentListening trong User
-    await User.findByIdAndUpdate(userId, { currentListening: trackId });
-
-    // Thêm vào lịch sử nghe
-    await History.create({
-      user: userId,
-      track: trackId,
-      playedAt: new Date(), 
-    });
-
-    // Invalidate cache user
-    await redisClient.del(`user:${userId}`);
-
-    res.status(200).json({
-      message: "Current listening track updated successfully",
-      currentListening: trackId,
-    });
-  } catch (error) {
-    console.error("Error setting current listening track:", error);
-    res.status(500).json({ message: "Internal server error" });
-  }
 };
 
 const stopListening = async (req, res) => {
   try {
+    const io = getIO();
     const userId = req.user._id;
+    const user = await User.findById(userId).select("currentListening followers username displayName avatarUrl");
 
-    await User.findByIdAndUpdate(userId, { currentListening: null });
-    await redisClient.del(`user:${userId}`);
+    if (!user) {
+        return res.status(404).json({ message: "User not found" });
+    }
+
+    if(!user.currentListening) {
+        return res.status(400).json({ message: "User is not currently listening to any track" });
+    }
+
+    if (user.currentListening) {
+        await History.create({
+            user: userId,
+            track: user.currentListening,
+            playedAt: new Date(),
+        });
+    }
+
+    // Emit cho bạn bè rằng user đã dừng nghe
+    user.followers.forEach(friendId => {
+        io.to(friendId.toString()).emit("friendListeningUpdate", {
+            type: "stop",
+            user: {
+                _id: user._id,
+                username: user.username,
+                displayName: user.displayName,
+                avatarUrl: user.avatarUrl,
+            },
+        });
+    });
+
+    user.currentListening = null;
+    await user.save();
 
     res.status(200).json({ message: "Stopped listening" });
   } catch (error) {
-    console.error("Error stopping listening:", error);
-    res.status(500).json({ message: "Internal server error" });
-  }
+        console.error("Error stopping listening:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
 };
+
+
 
 
 
@@ -494,11 +409,6 @@ module.exports = {
     getFollowing,
     followUser,
     unfollowUser,
-    // getUploadedTracks,
-    // getPlaylists,
-    // updatePlaylist,
-    // addToPlaylist,
-    // removeFromPlaylist,
     getLikedTracks,
     getLikedPlaylists,
     setCurrentListening,

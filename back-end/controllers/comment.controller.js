@@ -2,6 +2,7 @@ const Comment = require("../models/comment.js");
 const User = require("../models/user.js");
 const Track = require("../models/track.js");
 const Notification = require("../models/notification.js");
+const { getIO } = require("../config/socket.config.js");
 
 const mongoose = require("mongoose");
 const createComment = async (req, res) => {
@@ -56,7 +57,7 @@ const createComment = async (req, res) => {
                 type: "COMMENT_TRACK",
                 comment: comment._id,
                 track: trackId,
-                content: `${user.displayName} commented on your track "${track.title}": "${text}"`
+                content: `${user.username} commented on your track "${track.title}": "${text}"`
             });
             await notification.save({ session });
         }
@@ -64,6 +65,11 @@ const createComment = async (req, res) => {
         // Commit
         await session.commitTransaction();
         session.endSession();
+
+        if (notification) {
+            const io = getIO();
+            io.to(track.artist.toString()).emit("newNotification", notification);
+        }
 
         res.status(201).json({
             message: "Comment created successfully",

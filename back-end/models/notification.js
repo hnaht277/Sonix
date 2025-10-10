@@ -5,7 +5,7 @@ const notificationSchema = new mongoose.Schema({
   sender: { type: mongoose.Schema.Types.ObjectId, ref: "User" }, // ai tạo ra event
   type: {
     type: String,
-    enum: ["NEW_MESSAGE", "NEW_FOLLOW", "LIKE_TRACK", "LIKE_PLAYLIST", "COMMENT_TRACK", "SYSTEM"],
+    enum: ["NEW_MESSAGE", "NEW_FOLLOW", "LIKE_TRACK", "LIKE_PLAYLIST", "COMMENT_TRACK", "SYSTEM", "REPLY_FEED"],
     required: true
   },
   content: { type: String }, // nội dung tuỳ biến cho từng loại thông báo

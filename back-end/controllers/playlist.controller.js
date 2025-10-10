@@ -4,6 +4,7 @@ const multer = require("multer");
 const cloudinary = require("../config/cloudinary.config.js");
 const streamifier = require("streamifier");
 const mongoose = require("mongoose");
+const { getIO } = require("../config/socket.config.js");
 
 const {redisClient} = require("../config/redis.config.js");
 const Notification = require("../models/notification.js");
@@ -119,7 +120,7 @@ const toggleLikePlaylist = async (req, res) => {
                     sender: userId,
                     type: "LIKE_PLAYLIST",
                     playlist: playlist._id,
-                    content: `${user.displayName} liked your playlist "${playlist.title}"`
+                    content: `${user.username} liked your playlist "${playlist.title}"`
                 });
                 await notification.save({ session });
             }
@@ -130,6 +131,11 @@ const toggleLikePlaylist = async (req, res) => {
         // Commit transaction
         await session.commitTransaction();
         session.endSession();
+
+        if (notification) {
+            const io = getIO();
+            io.to(playlist.owner.toString()).emit("newNotification", notification);
+        }
 
         res.status(200).json({ message, playlist, notification: notification || null });
     } catch (error) {
@@ -162,6 +168,20 @@ const likePlaylist = async (req, res) => {
     playlist.likes.push(userId);
     playlist.likedCount = playlist.likes.length;
     await playlist.save();
+
+    // send notification to playlist owner
+    if (playlist.owner.toString() !== userId) {
+      const notification = new Notification({
+        recipient: playlist.owner,
+        sender: userId,
+        type: "LIKE_PLAYLIST",
+        playlist: playlist._id,
+        content: `${user.username} liked your playlist "${playlist.title}"`
+      });
+      await notification.save();
+      const io = getIO();
+      io.to(playlist.owner.toString()).emit("newNotification", notification);
+    }
 
     res.status(200).json({ message: "Playlist liked successfully" });
   } catch (error) {

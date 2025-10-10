@@ -4,10 +4,10 @@ const mongoose = require("mongoose");
 const messageSchema = new mongoose.Schema({
   conversationId: { type: mongoose.Schema.Types.ObjectId, ref: "Conversation", required: true },
   sender: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-  
-  text: { type: String },
-  
-  readBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }]
+  text: { type: String, required: true },
+  readBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+
+  repliedFeed: { type: mongoose.Schema.Types.ObjectId, ref: "History" },
 }, { timestamps: true });
 
 // index giúp phân trang nhanh khi load messages
