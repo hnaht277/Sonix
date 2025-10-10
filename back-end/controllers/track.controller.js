@@ -8,6 +8,7 @@ const multer = require("multer");
 const mm = require("music-metadata");
 const mongoose = require("mongoose");
 const Notification = require("../models/notification.js");
+const { getIO } = require("../config/socket.config.js");
 
 
 const { redisClient } = require("../config/redis.config.js");
@@ -103,7 +104,7 @@ const toggleLikeTrack = async (req, res) => {
           sender: userId,
           type: "LIKE_TRACK",
           track: trackId,
-          content: `${user.displayName} liked your track "${track.title}"`
+          content: `${user.username} liked your track "${track.title}"`
         });
         await notification.save({ session });
       }
@@ -112,6 +113,12 @@ const toggleLikeTrack = async (req, res) => {
     }
 
     await session.commitTransaction();
+
+    if (notification) {
+        const io = getIO();
+        io.to(track.artist.toString()).emit("newNotification", notification);
+    }
+
     res.json({ message, track, notification: notification || null });
   } catch (error) {
     console.error("Error toggling like on track:", error);

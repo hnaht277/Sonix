@@ -17,6 +17,7 @@ function initSocket(server) {
     // B1: authenticate để lưu userId vào socket
     socket.on("authenticate", (userId) => {
       socket.userId = userId;
+       socket.join(userId.toString()); // join room theo userId
       console.log(`Socket ${socket.id} authenticated as user ${userId}`);
     });
 

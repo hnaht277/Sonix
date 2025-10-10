@@ -17,6 +17,7 @@ const notificationRoutes = require("./routes/notification.route.js");
 const searchRoutes = require("./routes/search.route.js");
 const messageRoutes = require("./routes/message.route.js");
 const conversationRoutes = require("./routes/conversation.route.js");
+const historyRoutes = require("./routes/history.route.js");
 require("./jobs/playCountSync.js");
 
 
@@ -38,6 +39,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/search", searchRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/conversations", conversationRoutes);
+app.use("/api/history", historyRoutes);
 // Route test
 app.get("/", (req, res) => {
   res.send("Sonix backend is running!");
