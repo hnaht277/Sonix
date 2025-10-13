@@ -176,8 +176,26 @@ const login = async (req, res) => {
         //     return res.status(401).json({ message: 'Email or password is incorrect.' });
         // }
 
-        if (user.isLocked) {
-            return res.status(403).json({ message: 'Your account is locked. Please contact support.' });
+        if (user.lockInfo?.isLocked) {
+            // Nếu có ngày hết hạn, kiểm tra xem đã quá hạn chưa
+            if (user.lockInfo.expiresAt && user.lockInfo.expiresAt < new Date()) {
+                // -> Hết hạn => tự mở khóa
+                user.lockInfo = {
+                isLocked: false,
+                lockedAt: null,
+                expiresAt: null,
+                reason: "",
+                lockedBy: null,
+                };
+                await user.save();
+            } else {
+                // -> Chưa hết hạn => chặn đăng nhập
+                return res.status(403).json({
+                message: user.lockInfo.expiresAt
+                    ? `Your account is locked until ${user.lockInfo.expiresAt.toLocaleString()}. Reason: ${user.lockInfo.reason}`
+                    : "Your account has been permanently locked. Please contact support.",
+                });
+            }
         }
 
         if (!user.activateStatus) {
@@ -189,15 +207,20 @@ const login = async (req, res) => {
                     user.email = undefined; // Clear email to avoid revealing it
                     user.activationToken = undefined;
                     user.activationExpires = undefined;
-                    user.isLocked = true; // Lock the account
+                    user.lockInfo = {
+                        isLocked: true,
+                        lockedAt: new Date(),
+                        expiresAt: null,
+                        reason: "Activation expired",
+                        lockedBy: null,
+                    };
                     await user.save();
                     console.error('Error deleting expired user account:', error);
                 }
                 return res.status(401).json({ message: 'Email or password is incorrect.' });
             }
             return res
-                .status(403)
-                .json({ message: 'Your account is not activated. Please check your email for the activation link.' });
+                .status(403).json({ message: 'Your account is not activated. Please check your email for the activation link.' });
         }
 
         const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {

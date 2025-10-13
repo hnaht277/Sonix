@@ -28,7 +28,13 @@ const userSchema = new mongoose.Schema({
   activeConversations: [{ type: mongoose.Schema.Types.ObjectId, ref: "Conversation" }],
 
   // System
-  isLocked: { type: Boolean, default: false }, // locked user
+  lockInfo: {
+    isLocked: { type: Boolean, default: false },
+    lockedAt: { type: Date, default: null },
+    expiresAt: { type: Date, default: null },
+    reason: { type: String, default: "" },
+    lockedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+  },
   role: { type: String, enum: ["User", "Admin"], default: "User" },
   activationToken: { type: String },
   activationExpires: { type: Date },
