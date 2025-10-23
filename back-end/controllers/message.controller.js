@@ -163,7 +163,8 @@ const replyFeed = async (req, res) => {
 
   try {
     const userId = req.user.id;
-    let { conversationId, text, participantIds, historyId } = req.body;
+    const { historyId } = req.params;
+    let { conversationId, text, participantIds } = req.body;
 
     if (!historyId) {
       await session.abortTransaction();

@@ -617,16 +617,45 @@ const deleteTrack = async (req, res) => {
 
 const getTrackByUser = async (req, res) => {
   try {
-    const userId = req.params.userId;
+    const targetUserId = req.params.userId;
 
-    const cacheKey = `userTracks:${userId}`;
+    const userId = req.user.id;
+
+    const cacheKey = `userTracks:${targetUserId}`;
     const cachedData = await redisClient.get(cacheKey);
 
     if (cachedData) {
       return res.status(200).json({ message: "Tracks fetched successfully", tracks: JSON.parse(cachedData) });
     }
 
-    const tracks = await Track.find({ artist: userId }).sort({ createdAt: -1 });
+    let tracks = null;
+
+    if (targetUserId === userId) {
+      tracks = await Track.find({ artist: targetUserId }).sort({ createdAt: -1 });
+    } else {
+      const targetUser = await User.findById(targetUserId).select("followers");
+      if (!targetUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const followers = targetUser.followers;
+      if (followers.map(id => id.toString()).includes(userId.toString())) {
+        // current user is a follower
+        tracks = await Track.find({
+          artist: targetUserId,
+          $or: [
+            { privacy: "Public" },
+            { privacy: "Friends" }
+          ]
+        }).sort({ createdAt: -1 });
+      } else {
+        // not a follower
+        tracks = await Track.find({
+          artist: targetUserId,
+          privacy: "Public"
+        }).sort({ createdAt: -1 });
+      }
+    }
 
     if (!tracks) {
       return res.status(404).json({ message: "No tracks found for this user" });
