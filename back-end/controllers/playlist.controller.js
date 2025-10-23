@@ -5,75 +5,113 @@ const cloudinary = require("../config/cloudinary.config.js");
 const streamifier = require("streamifier");
 const mongoose = require("mongoose");
 const { getIO } = require("../config/socket.config.js");
+const Track = require("../models/track.js");
 
 const {redisClient} = require("../config/redis.config.js");
 const Notification = require("../models/notification.js");
 
+// const getVisiblePlaylistsForUser = async (req, res) => {
+//   try {
+//     const userId = req.user.id;
+
+//     const user = await User.findById(userId);
+//     if (!user) {
+//       return res.status(404).json({ error: "User not found" });
+//     }
+
+//     const allPlaylists = await Playlist.find({ 
+//       $or: [
+//         { privacy: "Public" },
+//         { owner: { $in: user.following }, privacy: "Friends" },
+//         { privacy: "Friends", owner: userId },
+//         { owner: userId, privacy: "Private" }
+//       ]
+//     }).sort({ createdAt: -1 })
+//       .populate({
+//         path: "tracks.track",
+//         populate: { path: "artist", select: "username avatarUrl" }
+//       });
+
+//     const filtered = allPlaylists.map(pl => {
+//       let hiddenCount = 0;
+
+//       const visibleTracks = pl.tracks.filter(t => {
+//         const track = t.track;
+
+//         if (!track) {
+//           hiddenCount++;
+//           return false;
+//         }
+
+//         const canView =
+//           track.privacy === "Public" ||
+//           (track.privacy === "Friends" &&
+//             req.user.following.includes(track.artist._id.toString())) ||
+//           (track.privacy === "Friends" && track.artist._id.toString() === userId) ||
+//           (track.privacy === "Private" &&
+//             track.artist._id.toString() === userId);
+
+//         if (!canView) {
+//           hiddenCount++;
+//           return false;
+//         }
+
+//         return true;
+//       });
+
+//       return {
+//         ...pl.toObject(),
+//         tracks: visibleTracks,
+//         hiddenTrackCount: hiddenCount
+//       };
+//     });
+
+//     res.status(200).json({
+//       message: "Playlists fetched successfully",
+//       playlists: filtered
+//     });
+//   } catch (error) {
+//     console.error("Error fetching playlists:", error);
+//     res.status(500).json({ error: "Internal server error" });
+//   }
+// };
+
 const getVisiblePlaylistsForUser = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user ? req.user.id : null;
 
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
+    let query = { privacy: "Public" }; // mặc định cho user chưa đăng nhập
+
+    if (userId) {
+      const user = await User.findById(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      query = {
+        $or: [
+          { privacy: "Public" },
+          { owner: { $in: user.following }, privacy: "Friends" },
+          { privacy: "Friends", owner: userId },
+          { owner: userId, privacy: "Private" }
+        ]
+      };
     }
 
-    const allPlaylists = await Playlist.find({ 
-      $or: [
-        { privacy: "Public" },
-        { owner: { $in: user.following }, privacy: "Friends" },
-        { privacy: "Friends", owner: userId },
-        { owner: userId, privacy: "Private" }
-      ]
-    }).sort({ createdAt: -1 })
-      .populate({
-        path: "tracks.track",
-        populate: { path: "artist", select: "username avatarUrl" }
-      });
-
-    const filtered = allPlaylists.map(pl => {
-      let hiddenCount = 0;
-
-      const visibleTracks = pl.tracks.filter(t => {
-        const track = t.track;
-
-        if (!track) {
-          hiddenCount++;
-          return false;
-        }
-
-        const canView =
-          track.privacy === "Public" ||
-          (track.privacy === "Friends" &&
-            req.user.following.includes(track.artist._id.toString())) ||
-          (track.privacy === "Friends" && track.artist._id.toString() === userId) ||
-          (track.privacy === "Private" &&
-            track.artist._id.toString() === userId);
-
-        if (!canView) {
-          hiddenCount++;
-          return false;
-        }
-
-        return true;
-      });
-
-      return {
-        ...pl.toObject(),
-        tracks: visibleTracks,
-        hiddenTrackCount: hiddenCount
-      };
-    });
+    const playlists = await Playlist.find(query)
+      .sort({ createdAt: -1 })
+      .populate("owner", "username avatarUrl");
 
     res.status(200).json({
       message: "Playlists fetched successfully",
-      playlists: filtered
+      playlists
     });
   } catch (error) {
     console.error("Error fetching playlists:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
 
 const toggleLikePlaylist = async (req, res) => {
     const session = await mongoose.startSession();
@@ -363,37 +401,125 @@ const deletePlaylist = async (req, res) => {
 };
 
 const getPlaylistById = async (req, res) => {
-    try {
-        const playlistId = req.params.id;
-        const playlist = await Playlist.findById(playlistId).populate("tracks.track");
-        if (!playlist) {
-            return res.status(404).json({ error: "Playlist not found" });
-        }
-        res.status(200).json({ message: "Playlist fetched successfully", playlist });
-    } catch (error) {
-        console.error("Error fetching playlist:", error);
-        res.status(500).json({ error: "Internal server error" });
+  try {
+    const userId = req.user.id;
+    const playlistId = req.params.id;
+
+    const playlist = await Playlist.findById(playlistId)
+      .populate({
+        path: "tracks.track",
+        populate: { path: "artist", select: "username avatarUrl" }
+      })
+      .populate("owner", "username avatarUrl");
+
+    if (!playlist) {
+      return res.status(404).json({ error: "Playlist not found" });
     }
+
+    // Kiểm tra quyền xem playlist
+    const canViewPlaylist =
+      playlist.privacy === "Public" ||
+      (playlist.privacy === "Friends" &&
+        (playlist.owner._id.equals(userId) ||
+          req.user.following.includes(playlist.owner._id.toString()))) ||
+      (playlist.privacy === "Private" && playlist.owner._id.equals(userId));
+
+
+    if (!canViewPlaylist) {
+      return res.status(403).json({ error: "You do not have access to this playlist" });
+    }
+
+    // Lọc track theo privacy
+    const filteredTracks = playlist.tracks.filter(t => {
+      const track = t.track;
+      if (!track) return false;
+
+      const canViewTrack =
+        track.privacy === "Public" ||
+        (track.privacy === "Friends" &&
+          (track.artist._id.equals(userId) ||
+            req.user.following.includes(track.artist._id.toString()))) ||
+        (track.privacy === "Private" && track.artist._id.equals(userId));
+
+      return canViewTrack;
+    });
+
+    const hiddenTrackCount = playlist.tracks.length - filteredTracks.length;
+
+    res.status(200).json({
+      message: "Playlist fetched successfully",
+      playlist: {
+        ...playlist.toObject(),
+        tracks: filteredTracks,
+        hiddenTrackCount
+      }
+    });
+  } catch (error) {
+    console.error("Error fetching playlist:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
 };
+
+// const getPlaylistByUser = async (req, res) => {
+//     try {
+//         const userId = req.params.userId;
+
+//         const cacheKey = `userPlaylists:${userId}`;
+//         const cachedData = await redisClient.get(cacheKey);
+//         if (cachedData) {
+//             return res.status(200).json({ message: "Playlists fetched successfully", playlists: JSON.parse(cachedData) });
+//         }
+
+//         const playlists = await Playlist.find({ owner: userId }).populate("tracks.track");
+//         if (!playlists) {
+//             return res.status(404).json({ error: "No playlists found for this user" });
+//         }
+
+//         await redisClient.set(cacheKey, JSON.stringify(playlists), { EX: 300 }); // Cache for 5 minutes
+
+//         res.status(200).json({ message: "Playlists fetched successfully", playlists });
+//     } catch (error) {
+//         console.error("Error fetching user playlists:", error);
+//         res.status(500).json({ error: "Internal server error" });
+//     }
+// };
 
 const getPlaylistByUser = async (req, res) => {
     try {
-        const userId = req.params.userId;
+        const targetUserId = req.params.userId;
+        const requesterUserId = req.user ? req.user.id : null;
 
-        const cacheKey = `userPlaylists:${userId}`;
+        const cacheKey = `userPlaylists:${targetUserId}`;
         const cachedData = await redisClient.get(cacheKey);
+
         if (cachedData) {
             return res.status(200).json({ message: "Playlists fetched successfully", playlists: JSON.parse(cachedData) });
         }
 
-        const playlists = await Playlist.find({ owner: userId }).populate("tracks.track");
-        if (!playlists) {
-            return res.status(404).json({ error: "No playlists found for this user" });
+        const targetUser = await User.findById(targetUserId);
+        if (!targetUser) {
+            return res.status(404).json({ error: "User not found" });
         }
 
-        await redisClient.set(cacheKey, JSON.stringify(playlists), { EX: 300 }); // Cache for 5 minutes
+        const playlists = await Playlist.find({ owner: targetUserId })
+            .sort({ createdAt: -1 })
+            .populate("owner", "username avatarUrl");
+        // Filter playlists based on privacy
+        const filteredPlaylists = playlists.filter(pl => {
+            if (pl.privacy === "Public") return true;
+            if (pl.privacy === "Friends") {
+                return requesterUserId && (pl.owner._id.equals(requesterUserId) || targetUser.followers.includes(requesterUserId));
+            }
+            if (pl.privacy === "Private") {
+                return requesterUserId && pl.owner._id.equals(requesterUserId);
+            }
 
-        res.status(200).json({ message: "Playlists fetched successfully", playlists });
+            return false;
+        });
+
+        await redisClient.set(cacheKey, JSON.stringify(filteredPlaylists), { EX: 300 }); // Cache for 5 minutes
+
+        res.status(200).json({ message: "Playlists fetched successfully", playlists: filteredPlaylists });
     } catch (error) {
         console.error("Error fetching user playlists:", error);
         res.status(500).json({ error: "Internal server error" });
@@ -453,7 +579,7 @@ const addTrackToPlaylist = async (req, res) => {
     try {
         const userId = req.user.id;
         const playlistId = req.params.id;
-        const { trackId } = req.body;
+        const { trackId } = req.params;
 
         const playlist = await Playlist.findById(playlistId);
         if (!playlist) {
@@ -463,6 +589,16 @@ const addTrackToPlaylist = async (req, res) => {
         // Check if user is the owner
         if (playlist.owner.toString() !== userId) {
             return res.status(403).json({ error: "You are not authorized to add tracks to this playlist" });
+        }
+
+        const track = await Track.findById(trackId);
+        if (!track) {
+            return res.status(404).json({ error: "Track not found" });
+        }
+        // Check if user can view the track
+        if (track.privacy === "Private" && track.artist.toString() !== userId || 
+            track.privacy === "Friends" && !req.user.following.includes(track.artist.toString()) && track.artist.toString() !== userId) {
+            return res.status(403).json({ error: "You are not authorized to add this track to the playlist" });
         }
 
         // Check if track already exists
@@ -476,7 +612,9 @@ const addTrackToPlaylist = async (req, res) => {
 
         // Invalidate cache
         await redisClient.del(`userPlaylists:${userId}`);
-        await redisClient.del("trendingPlaylists");
+        if (track.privacy === "Public") {
+            await redisClient.del("trendingPlaylists");
+        }
         await redisClient.del("allPlaylists");
 
         res.status(200).json({ message: "Track added to playlist successfully", playlist });
@@ -495,6 +633,11 @@ const removeTrackFromPlaylist = async (req, res) => {
         const playlist = await Playlist.findById(playlistId);
         if (!playlist) {
             return res.status(404).json({ error: "Playlist not found" });
+        }
+
+        const track = await Track.findById(trackId);
+        if (!track) {
+            return res.status(404).json({ error: "Track not found" });
         }
 
         // Check if user is the owner
@@ -521,7 +664,9 @@ const removeTrackFromPlaylist = async (req, res) => {
 
         // Invalidate cache
         await redisClient.del(`userPlaylists:${userId}`);
-        await redisClient.del("trendingPlaylists");
+        if (track.privacy === "Public") {
+            await redisClient.del("trendingPlaylists");
+        }
         await redisClient.del("allPlaylists");
 
         res.status(200).json({ message: "Track removed from playlist successfully", playlist: updatePlaylist });

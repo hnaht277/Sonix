@@ -9,7 +9,7 @@ const {
 } = require('../controllers/message.controller.js');
 
 router.post('/', authMiddleware, createMessage);
-router.post('/reply-feed', authMiddleware, replyFeed);
+router.post('/reply-feed/history/:historyId', authMiddleware, replyFeed);
 router.get('/:conversationId', authMiddleware, getMessages);
 
 module.exports = router;

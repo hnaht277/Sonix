@@ -1,11 +1,17 @@
 import React from "react";
+import { UserProvider } from "./contexts/userContext";
+import { ErrorProvider, useError } from "./contexts/errorContext";
 
-function App() {
+const App = () => {
   return (
-    <div>
-      <h1 className="text-4xl font-bold text-center">Sonix</h1>
-    </div>
+    <ErrorProvider>
+      <UserProvider>
+        <div>
+          <h1 className="text-4xl font-bold text-center">Sonix</h1>
+        </div>
+      </UserProvider>
+    </ErrorProvider>
   );
-}
+};
 
 export default App;
